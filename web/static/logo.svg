@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Background circle -->
+  <circle cx="32" cy="32" r="30" fill="#0066cc"/>
+  <circle cx="32" cy="32" r="28" fill="#004080"/>
+
+  <!-- Robot head -->
+  <rect x="21" y="12" width="22" height="18" rx="4" fill="#c0c8d0" stroke="#fff" stroke-width="1"/>
+  <!-- Antenna -->
+  <line x1="32" y1="12" x2="32" y2="6" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+  <circle cx="32" cy="5" r="2" fill="#3399ff"/>
+  <!-- Eyes -->
+  <circle cx="27" cy="20" r="2.5" fill="#3399ff"/>
+  <circle cx="37" cy="20" r="2.5" fill="#3399ff"/>
+  <!-- Eye shine -->
+  <circle cx="26.2" cy="19.2" r="0.8" fill="#fff"/>
+  <circle cx="36.2" cy="19.2" r="0.8" fill="#fff"/>
+  <!-- Mouth -->
+  <rect x="26" y="25" width="12" height="2" rx="1" fill="#555"/>
+  <line x1="29" y1="25" x2="29" y2="27" stroke="#004080" stroke-width="0.5"/>
+  <line x1="32" y1="25" x2="32" y2="27" stroke="#004080" stroke-width="0.5"/>
+  <line x1="35" y1="25" x2="35" y2="27" stroke="#004080" stroke-width="0.5"/>
+  <!-- Ears -->
+  <rect x="17" y="17" width="4" height="6" rx="1" fill="#a0a8b0" stroke="#fff" stroke-width="0.5"/>
+  <rect x="43" y="17" width="4" height="6" rx="1" fill="#a0a8b0" stroke="#fff" stroke-width="0.5"/>
+
+  <!-- Neck -->
+  <rect x="29" y="30" width="6" height="3" fill="#a0a8b0"/>
+
+  <!-- Body -->
+  <rect x="22" y="33" width="20" height="14" rx="3" fill="#c0c8d0" stroke="#fff" stroke-width="1"/>
+  <!-- Chest panel -->
+  <rect x="27" y="36" width="10" height="8" rx="1.5" fill="#004080" stroke="#3399ff" stroke-width="0.5"/>
+  <!-- Chest lights -->
+  <circle cx="30" cy="39" r="1" fill="#3399ff"/>
+  <circle cx="34" cy="39" r="1" fill="#3399ff"/>
+  <circle cx="32" cy="42" r="1" fill="#00cc66"/>
+
+  <!-- Left arm holding wrench -->
+  <g>
+    <!-- Upper arm -->
+    <rect x="14" y="34" width="8" height="4" rx="2" fill="#a0a8b0" stroke="#fff" stroke-width="0.5"/>
+    <!-- Forearm -->
+    <rect x="8" y="36" width="8" height="3.5" rx="1.5" fill="#a0a8b0" stroke="#fff" stroke-width="0.5" transform="rotate(-25 12 38)"/>
+    <!-- Hand -->
+    <circle cx="8" cy="35" r="2.5" fill="#c0c8d0" stroke="#fff" stroke-width="0.5"/>
+    <!-- Wrench -->
+    <g transform="translate(5 28) rotate(30 3 7)">
+      <rect x="2" y="3" width="2" height="10" rx="0.5" fill="#e8b830" stroke="#c89620" stroke-width="0.3"/>
+      <path d="M0.5 2 Q3 -1 5.5 2 L4.5 4 L1.5 4 Z" fill="#e8b830" stroke="#c89620" stroke-width="0.3"/>
+    </g>
+  </g>
+
+  <!-- Right arm holding screwdriver -->
+  <g>
+    <!-- Upper arm -->
+    <rect x="42" y="34" width="8" height="4" rx="2" fill="#a0a8b0" stroke="#fff" stroke-width="0.5"/>
+    <!-- Forearm -->
+    <rect x="48" y="36" width="8" height="3.5" rx="1.5" fill="#a0a8b0" stroke="#fff" stroke-width="0.5" transform="rotate(25 52 38)"/>
+    <!-- Hand -->
+    <circle cx="56" cy="35" r="2.5" fill="#c0c8d0" stroke="#fff" stroke-width="0.5"/>
+    <!-- Screwdriver -->
+    <g transform="translate(55 24) rotate(-30 2 10)">
+      <!-- Handle -->
+      <rect x="0.5" y="6" width="3" height="5" rx="1" fill="#cc3333" stroke="#aa2222" stroke-width="0.3"/>
+      <!-- Shaft -->
+      <rect x="1.2" y="1" width="1.6" height="5.5" rx="0.3" fill="#d0d0d0" stroke="#999" stroke-width="0.3"/>
+      <!-- Tip -->
+      <polygon points="1.5,0 2.5,0 2.2,1.2 1.8,1.2" fill="#999"/>
+    </g>
+  </g>
+
+  <!-- Legs -->
+  <rect x="25" y="47" width="5" height="7" rx="1.5" fill="#a0a8b0" stroke="#fff" stroke-width="0.5"/>
+  <rect x="34" y="47" width="5" height="7" rx="1.5" fill="#a0a8b0" stroke="#fff" stroke-width="0.5"/>
+  <!-- Feet -->
+  <rect x="23" y="53" width="8" height="3" rx="1.5" fill="#808890" stroke="#fff" stroke-width="0.5"/>
+  <rect x="33" y="53" width="8" height="3" rx="1.5" fill="#808890" stroke="#fff" stroke-width="0.5"/>
+</svg>

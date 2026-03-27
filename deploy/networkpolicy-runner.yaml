@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ai-toolbox-loadtest-runner
+  namespace: ai-toolbox
+spec:
+  podSelector:
+    matchLabels:
+      component: loadtest-runner
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow traffic from the main ai-toolbox app pod
+    - from:
+        - podSelector:
+            matchLabels:
+              app: ai-toolbox
+      ports:
+        - protocol: TCP
+          port: 8090
+    # Allow Prometheus scraping from openshift-monitoring / openshift-user-workload-monitoring
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-monitoring
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-user-workload-monitoring
+      ports:
+        - protocol: TCP
+          port: 8090

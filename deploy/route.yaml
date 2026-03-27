@@ -1,0 +1,15 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: ai-toolbox
+  namespace: ai-toolbox
+  labels:
+    app: ai-toolbox
+spec:
+  to:
+    kind: Service
+    name: ai-toolbox
+  port:
+    targetPort: proxy
+  tls:
+    termination: reencrypt

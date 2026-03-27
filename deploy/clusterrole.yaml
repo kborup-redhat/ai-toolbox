@@ -1,0 +1,70 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ai-toolbox
+  labels:
+    app: ai-toolbox
+rules:
+  # Core resources
+  - apiGroups: [""]
+    resources: ["namespaces", "services", "configmaps", "nodes"]
+    verbs: ["get", "list", "watch"]
+  # Pods: read + create/delete for load test runner
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  # Workloads
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "replicasets"]
+    verbs: ["get", "list"]
+  # Routes
+  - apiGroups: ["route.openshift.io"]
+    resources: ["routes"]
+    verbs: ["get", "list"]
+  # KServe InferenceServices and ServingRuntimes
+  - apiGroups: ["serving.kserve.io"]
+    resources: ["inferenceservices", "servingruntimes"]
+    verbs: ["get", "list", "watch"]
+  # Network policies (firewall rules)
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list"]
+  # OpenShift groups (for access control)
+  - apiGroups: ["user.openshift.io"]
+    resources: ["groups"]
+    verbs: ["get", "list"]
+  # Console URL discovery
+  - apiGroups: ["config.openshift.io"]
+    resources: ["consoles"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ai-toolbox
+  labels:
+    app: ai-toolbox
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ai-toolbox
+subjects:
+  - kind: ServiceAccount
+    name: ai-toolbox
+    namespace: ai-toolbox
+---
+# Monitoring access for Thanos/Prometheus queries
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ai-toolbox-monitoring
+  labels:
+    app: ai-toolbox
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-monitoring-view
+subjects:
+  - kind: ServiceAccount
+    name: ai-toolbox
+    namespace: ai-toolbox

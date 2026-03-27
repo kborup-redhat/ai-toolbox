@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Toolbox</title>
+    <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+    <link rel="stylesheet" href="https://unpkg.com/@patternfly/patternfly@5/patternfly.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <ul class="pf-v5-c-alert-group pf-m-toast" id="toast-container"></ul>
+    <div class="pf-v5-c-page">
+        <header class="pf-v5-c-masthead">
+            <div class="pf-v5-c-masthead__main">
+                <a class="pf-v5-c-masthead__brand" href="/">
+                    <img src="/static/logo.svg" alt="AI Toolbox" style="height:36px;margin-right:10px;vertical-align:middle;">
+                    <span style="font-size:1.1rem;font-weight:700;color:#fff;">AI Toolbox</span>
+                </a>
+            </div>
+            <div class="pf-v5-c-masthead__content">
+                <nav class="pf-v5-c-nav pf-m-horizontal">
+                    <ul class="pf-v5-c-nav__list">
+                        <li class="pf-v5-c-nav__item">
+                            <a class="pf-v5-c-nav__link pf-m-current" href="/" data-tab="models">Models</a>
+                        </li>
+                        <li class="pf-v5-c-nav__item">
+                            <a class="pf-v5-c-nav__link" href="#" data-tab="metrics">Metrics</a>
+                        </li>
+                        <li class="pf-v5-c-nav__item">
+                            <a class="pf-v5-c-nav__link" href="#" data-tab="analysis">Analyzer</a>
+                        </li>
+                        <li class="pf-v5-c-nav__item">
+                            <a class="pf-v5-c-nav__link" href="#" data-tab="live">Load Test</a>
+                        </li>
+                        <li class="pf-v5-c-nav__item">
+                            <a class="pf-v5-c-nav__link" href="#" data-tab="firewalls">Firewall Rules</a>
+                        </li>
+                        <li class="pf-v5-c-nav__item">
+                            <a class="pf-v5-c-nav__link" href="#" data-tab="status">Status</a>
+                        </li>
+                    </ul>
+                </nav>
+                {{if .Username}}
+                <div style="margin-left:auto;color:#fff;font-size:0.875rem;padding-right:16px;">
+                    {{.Username}}
+                </div>
+                {{end}}
+            </div>
+        </header>
+
+        <main class="pf-v5-c-page__main" tabindex="-1">
+            <!-- Models Tab -->
+            <div id="tab-models">
+                <section class="pf-v5-c-page__main-section pf-m-light">
+                    <div class="pf-v5-c-content">
+                        <h1>Deployed Models</h1>
+                        <p>InferenceServices running across the cluster with resource usage and node placement.</p>
+                    </div>
+                </section>
+                <section class="pf-v5-c-page__main-section">
+                    <div id="models-loading" class="loading-state">
+                        <span class="pf-v5-c-spinner pf-m-lg" role="progressbar"><span class="pf-v5-c-spinner__clipper"></span><span class="pf-v5-c-spinner__lead-ball"></span><span class="pf-v5-c-spinner__tail-ball"></span></span>
+                        <p>Loading models...</p>
+                    </div>
+                    <div id="models-empty" class="hidden">
+                        <div class="pf-v5-c-empty-state">
+                            <div class="pf-v5-c-empty-state__content">
+                                <h2 class="pf-v5-c-title pf-m-lg pf-v5-c-empty-state__title-text">No models deployed</h2>
+                                <div class="pf-v5-c-empty-state__body">No InferenceServices found in the cluster. Deploy a model through OpenShift AI to see it here.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="models-content" class="hidden">
+                        <div class="pf-v5-l-gallery pf-m-gutter summary-gallery" id="models-summary"></div>
+                        <div class="pf-v5-c-card" style="margin-top:16px;">
+                            <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">Model Details</h2></div></div>
+                            <div class="pf-v5-c-card__body" style="padding:0;">
+                                <table class="pf-v5-c-table pf-m-grid-md" id="models-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Model</th>
+                                            <th>Namespace</th>
+                                            <th>Runtime</th>
+                                            <th>Status</th>
+                                            <th>Node</th>
+                                            <th>GPUs</th>
+                                            <th>CPU (req / limit)</th>
+                                            <th>Memory (req / limit)</th>
+                                            <th>Created</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="models-table-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div id="model-detail-panel" class="hidden" style="margin-top:16px;">
+                            <div class="pf-v5-c-card">
+                                <div class="pf-v5-c-card__header">
+                                    <div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text" id="model-detail-title">Model Pods</h2></div>
+                                    <div class="pf-v5-c-card__actions"><button class="pf-v5-c-button pf-m-plain" onclick="closeModelDetail()">&times;</button></div>
+                                </div>
+                                <div class="pf-v5-c-card__body" style="padding:0;">
+                                    <table class="pf-v5-c-table pf-m-compact">
+                                        <thead><tr><th>Pod</th><th>Node</th><th>Phase</th><th>GPUs</th><th>CPU (req / limit)</th><th>Memory (req / limit)</th></tr></thead>
+                                        <tbody id="model-pods-body"></tbody>
+                                    </table>
+                                </div>
+                                <div class="pf-v5-c-card__body" id="model-endpoint-info"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="models-error" class="hidden">
+                        <div class="pf-v5-c-alert pf-m-danger"><div class="pf-v5-c-alert__icon"><i class="pf-icon pf-icon-error-circle-o"></i></div><h4 class="pf-v5-c-alert__title" id="models-error-msg"></h4></div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Metrics Tab -->
+            <div id="tab-metrics" class="hidden">
+                <section class="pf-v5-c-page__main-section pf-m-light">
+                    <div class="pf-v5-c-content">
+                        <h1>Model Metrics</h1>
+                        <p>Request hit rate, usage statistics, latency, GPU utilization, and throughput per model.</p>
+                    </div>
+                </section>
+                <section class="pf-v5-c-page__main-section">
+                    <!-- Model selector toolbar -->
+                    <div class="pf-v5-c-toolbar" id="metrics-toolbar">
+                        <div class="pf-v5-c-toolbar__content">
+                            <div class="pf-v5-c-toolbar__item" style="display:flex;align-items:center;gap:12px;">
+                                <label for="metrics-model-select" style="font-weight:600;">Select Model:</label>
+                                <select id="metrics-model-select" class="pf-v5-c-form-control" style="min-width:300px;">
+                                    <option value="">-- Choose a model --</option>
+                                </select>
+                            </div>
+                            <div class="pf-v5-c-toolbar__item" style="display:flex;align-items:center;gap:12px;margin-left:24px;">
+                                <label for="metrics-range-select" style="font-weight:600;">Time Range:</label>
+                                <select id="metrics-range-select" class="pf-v5-c-form-control">
+                                    <option value="5m">Last 5 minutes</option>
+                                    <option value="15m">Last 15 minutes</option>
+                                    <option value="1h" selected>Last 1 hour</option>
+                                    <option value="6h">Last 6 hours</option>
+                                    <option value="24h">Last 24 hours</option>
+                                </select>
+                            </div>
+                            <div class="pf-v5-c-toolbar__item" style="margin-left:12px;">
+                                <button class="pf-v5-c-button pf-m-secondary" id="metrics-refresh-btn" onclick="refreshMetrics()">Refresh</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- No model selected -->
+                    <div id="metrics-placeholder">
+                        <div class="pf-v5-c-empty-state" style="margin-top:24px;">
+                            <div class="pf-v5-c-empty-state__content">
+                                <h2 class="pf-v5-c-title pf-m-lg pf-v5-c-empty-state__title-text">Select a model</h2>
+                                <div class="pf-v5-c-empty-state__body">Choose a deployed model from the dropdown above to view its metrics and usage statistics.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Loading -->
+                    <div id="metrics-loading" class="hidden loading-state">
+                        <span class="pf-v5-c-spinner pf-m-lg" role="progressbar"><span class="pf-v5-c-spinner__clipper"></span><span class="pf-v5-c-spinner__lead-ball"></span><span class="pf-v5-c-spinner__tail-ball"></span></span>
+                        <p>Querying metrics...</p>
+                    </div>
+
+                    <!-- Metrics content -->
+                    <div id="metrics-content" class="hidden">
+                        <!-- Hit Rate & Usage summary cards -->
+                        <div class="pf-v5-l-gallery pf-m-gutter summary-gallery" id="metrics-summary" style="margin-top:16px;"></div>
+
+                        <!-- Charts row: Request Rate + Latency -->
+                        <div class="metrics-charts-row" style="margin-top:16px;">
+                            <div class="pf-v5-c-card metrics-chart-card">
+                                <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">Request Hit Rate (req/s)</h2></div></div>
+                                <div class="pf-v5-c-card__body">
+                                    <div class="chart-container" id="chart-request-rate"></div>
+                                </div>
+                            </div>
+                            <div class="pf-v5-c-card metrics-chart-card">
+                                <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">Latency (ms, p50)</h2></div></div>
+                                <div class="pf-v5-c-card__body">
+                                    <div class="chart-container" id="chart-latency"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Charts row: GPU Util + Token Rate -->
+                        <div class="metrics-charts-row" style="margin-top:16px;">
+                            <div class="pf-v5-c-card metrics-chart-card">
+                                <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">GPU / KV Cache Utilization (%)</h2></div></div>
+                                <div class="pf-v5-c-card__body">
+                                    <div class="chart-container" id="chart-gpu-util"></div>
+                                </div>
+                            </div>
+                            <div class="pf-v5-c-card metrics-chart-card">
+                                <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">Token Throughput (tok/s)</h2></div></div>
+                                <div class="pf-v5-c-card__body">
+                                    <div class="chart-container" id="chart-token-rate"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Usage statistics table -->
+                        <div class="pf-v5-c-card" style="margin-top:16px;">
+                            <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">Usage Statistics</h2></div></div>
+                            <div class="pf-v5-c-card__body" style="padding:0;">
+                                <table class="pf-v5-c-table pf-m-grid-md" id="usage-stats-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Metric</th>
+                                            <th>Value</th>
+                                            <th>Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="usage-stats-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Error -->
+                    <div id="metrics-error" class="hidden">
+                        <div class="pf-v5-c-alert pf-m-warning" style="margin-top:16px;"><div class="pf-v5-c-alert__icon"><i class="pf-icon pf-icon-warning-triangle"></i></div><h4 class="pf-v5-c-alert__title" id="metrics-error-msg"></h4></div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Analyzer Tab -->
+            <div id="tab-analysis" class="hidden">
+                <section class="pf-v5-c-page__main-section pf-m-light">
+                    <div class="pf-v5-c-content">
+                        <h1>Model Analyzer</h1>
+                        <p>Deep performance, efficiency, resource, and configuration analysis for deployed models.</p>
+                    </div>
+                </section>
+                <section class="pf-v5-c-page__main-section">
+                    <!-- Model selector -->
+                    <div class="pf-v5-c-toolbar" id="analysis-toolbar">
+                        <div class="pf-v5-c-toolbar__content">
+                            <div class="pf-v5-c-toolbar__item" style="display:flex;align-items:center;gap:12px;">
+                                <label for="analysis-model-select" style="font-weight:600;">Select Model:</label>
+                                <select id="analysis-model-select" class="pf-v5-c-form-control" style="min-width:300px;">
+                                    <option value="">-- Choose a model --</option>
+                                </select>
+                            </div>
+                            <div class="pf-v5-c-toolbar__item" style="margin-left:12px;">
+                                <button class="pf-v5-c-button pf-m-secondary" onclick="refreshAnalysis()">Refresh</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="analysis-placeholder">
+                        <div class="pf-v5-c-empty-state" style="margin-top:24px;">
+                            <div class="pf-v5-c-empty-state__content">
+                                <h2 class="pf-v5-c-title pf-m-lg pf-v5-c-empty-state__title-text">Select a model</h2>
+                                <div class="pf-v5-c-empty-state__body">Choose a deployed model to analyze its performance, efficiency, and resource usage.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="analysis-loading" class="hidden loading-state">
+                        <span class="pf-v5-c-spinner pf-m-lg" role="progressbar"><span class="pf-v5-c-spinner__clipper"></span><span class="pf-v5-c-spinner__lead-ball"></span><span class="pf-v5-c-spinner__tail-ball"></span></span>
+                        <p>Analyzing model...</p>
+                    </div>
+
+                    <div id="analysis-content" class="hidden">
+                        <!-- Performance -->
+                        <div class="pf-v5-c-card" style="margin-top:16px;">
+                            <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">Performance Analysis</h2></div></div>
+                            <div class="pf-v5-c-card__body" style="padding:0;">
+                                <table class="pf-v5-c-table pf-m-grid-md pf-m-compact">
+                                    <thead><tr><th>Metric</th><th>Value</th><th>Description</th><th>Assessment</th></tr></thead>
+                                    <tbody id="analysis-perf-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Efficiency -->
+                        <div class="pf-v5-c-card" style="margin-top:16px;">
+                            <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">Efficiency Analysis</h2></div></div>
+                            <div class="pf-v5-c-card__body" style="padding:0;">
+                                <table class="pf-v5-c-table pf-m-grid-md pf-m-compact">
+                                    <thead><tr><th>Metric</th><th>Value</th><th>Description</th><th>Assessment</th></tr></thead>
+                                    <tbody id="analysis-eff-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Resource -->
+                        <div class="pf-v5-c-card" style="margin-top:16px;">
+                            <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">Resource Analysis</h2></div></div>
+                            <div class="pf-v5-c-card__body" style="padding:0;">
+                                <table class="pf-v5-c-table pf-m-grid-md pf-m-compact">
+                                    <thead><tr><th>Resource</th><th>Requested</th><th>Limit</th><th>Actual</th><th>Assessment</th></tr></thead>
+                                    <tbody id="analysis-resource-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Scheduling & Placement -->
+                        <div class="pf-v5-c-card" style="margin-top:16px;">
+                            <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">Scheduling &amp; Placement</h2></div></div>
+                            <div class="pf-v5-c-card__body" style="padding:0;">
+                                <table class="pf-v5-c-table pf-m-grid-md pf-m-compact">
+                                    <thead><tr><th>Metric</th><th>Value</th><th>Details</th></tr></thead>
+                                    <tbody id="analysis-scheduling-body"></tbody>
+                                </table>
+                            </div>
+                            <div class="pf-v5-c-card__body" id="analysis-gpu-frag-section" style="padding:0;display:none;">
+                                <h3 style="padding:12px 16px 0;font-size:0.95rem;font-weight:600;">GPU Fragmentation by Node</h3>
+                                <table class="pf-v5-c-table pf-m-grid-md pf-m-compact">
+                                    <thead><tr><th>Node</th><th>GPU Product</th><th>Used</th><th>Total</th><th>Free</th><th>Fragment Score</th></tr></thead>
+                                    <tbody id="analysis-gpu-frag-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Scaling & Capacity -->
+                        <div class="pf-v5-c-card" style="margin-top:16px;">
+                            <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">Scaling &amp; Capacity</h2></div></div>
+                            <div class="pf-v5-c-card__body" style="padding:0;">
+                                <table class="pf-v5-c-table pf-m-grid-md pf-m-compact">
+                                    <thead><tr><th>Metric</th><th>Value</th><th>Details</th><th>Assessment</th></tr></thead>
+                                    <tbody id="analysis-scaling-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Model Configuration Audit -->
+                        <div class="pf-v5-c-card" style="margin-top:16px;">
+                            <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">Model Configuration Audit</h2></div></div>
+                            <div class="pf-v5-c-card__body" style="padding:0;">
+                                <table class="pf-v5-c-table pf-m-grid-md pf-m-compact">
+                                    <thead><tr><th>Setting</th><th>Value</th><th>Details</th><th>Assessment</th></tr></thead>
+                                    <tbody id="analysis-configaudit-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Network & Connectivity -->
+                        <div class="pf-v5-c-card" style="margin-top:16px;">
+                            <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">Network &amp; Connectivity</h2></div></div>
+                            <div class="pf-v5-c-card__body" style="padding:0;">
+                                <table class="pf-v5-c-table pf-m-grid-md pf-m-compact">
+                                    <thead><tr><th>Metric</th><th>Value</th><th>Details</th></tr></thead>
+                                    <tbody id="analysis-network-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Health & Reliability -->
+                        <div class="pf-v5-c-card" style="margin-top:16px;">
+                            <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">Health &amp; Reliability</h2></div></div>
+                            <div class="pf-v5-c-card__body" style="padding:0;">
+                                <table class="pf-v5-c-table pf-m-grid-md pf-m-compact">
+                                    <thead><tr><th>Metric</th><th>Value</th><th>Details</th><th>Assessment</th></tr></thead>
+                                    <tbody id="analysis-health-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Cost & Efficiency -->
+                        <div class="pf-v5-c-card" style="margin-top:16px;">
+                            <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">Cost &amp; Efficiency</h2></div></div>
+                            <div class="pf-v5-c-card__body" style="padding:0;">
+                                <table class="pf-v5-c-table pf-m-grid-md pf-m-compact">
+                                    <thead><tr><th>Metric</th><th>Value</th><th>Details</th><th>Assessment</th></tr></thead>
+                                    <tbody id="analysis-cost-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="analysis-error" class="hidden">
+                        <div class="pf-v5-c-alert pf-m-warning" style="margin-top:16px;"><div class="pf-v5-c-alert__icon"><i class="pf-icon pf-icon-warning-triangle"></i></div><h4 class="pf-v5-c-alert__title" id="analysis-error-msg"></h4></div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Load Test Tab -->
+            <div id="tab-live" class="hidden">
+                <section class="pf-v5-c-page__main-section pf-m-light">
+                    <div class="pf-v5-c-content">
+                        <h1>Load Test</h1>
+                        <p>Run load tests against deployed models and monitor real-time metrics from the pod.</p>
+                    </div>
+                </section>
+                <section class="pf-v5-c-page__main-section">
+                    <!-- Load test stats banner -->
+                    <div id="loadtest-banner" class="pf-v5-l-gallery pf-m-gutter summary-gallery" style="margin-bottom:16px;">
+                        <div class="pf-v5-c-card summary-card"><div class="pf-v5-c-card__body summary-card-body"><div class="summary-card-text"><div class="summary-card-value" id="loadtest-total-count">0</div><div class="summary-card-label">Total Tests Run</div></div></div></div>
+                        <div class="pf-v5-c-card summary-card"><div class="pf-v5-c-card__body summary-card-body"><div class="summary-card-text"><div class="summary-card-value" id="loadtest-active-status" style="color:#3e8635;">Idle</div><div class="summary-card-label">Current Status</div></div></div></div>
+                    </div>
+
+                    <!-- Model selector -->
+                    <div class="pf-v5-c-toolbar" style="background:var(--pf-v5-global--BackgroundColor--100);padding:12px 16px;border:1px solid var(--pf-v5-global--BorderColor--100);border-radius:var(--pf-v5-global--BorderRadius--sm);">
+                        <div class="pf-v5-c-toolbar__content" style="flex-wrap:wrap;gap:12px;">
+                            <div class="pf-v5-c-toolbar__item" style="display:flex;align-items:center;gap:12px;">
+                                <label for="live-model-select" style="font-weight:600;">Select Model:</label>
+                                <select id="live-model-select" class="pf-v5-c-form-control" style="min-width:300px;">
+                                    <option value="">-- Choose a model --</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="live-placeholder">
+                        <div class="pf-v5-c-empty-state" style="margin-top:24px;">
+                            <div class="pf-v5-c-empty-state__content">
+                                <h2 class="pf-v5-c-title pf-m-lg pf-v5-c-empty-state__title-text">Select a model</h2>
+                                <div class="pf-v5-c-empty-state__body">Choose a model to configure and run load tests, and to monitor real-time stats from the pod.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Load test controls (shown after model selection) -->
+                    <div id="loadtest-controls" class="hidden">
+                        <div class="pf-v5-c-card" style="margin-top:16px;">
+                            <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">Load Test Configuration</h2></div></div>
+                            <div class="pf-v5-c-card__body">
+                                <div style="display:flex;align-items:flex-end;gap:24px;flex-wrap:wrap;">
+                                    <div>
+                                        <label for="loadtest-tokens" style="display:block;font-weight:600;margin-bottom:4px;font-size:0.875rem;">Max Tokens</label>
+                                        <select id="loadtest-tokens" class="pf-v5-c-form-control" style="min-width:140px;">
+                                            <option value="10">10 tokens</option>
+                                            <option value="50" selected>50 tokens</option>
+                                            <option value="100">100 tokens</option>
+                                            <option value="256">256 tokens</option>
+                                            <option value="512">512 tokens</option>
+                                            <option value="1024">1024 tokens</option>
+                                            <option value="2048">2048 tokens</option>
+                                            <option value="4096">4096 tokens</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="loadtest-concurrency" style="display:block;font-weight:600;margin-bottom:4px;font-size:0.875rem;">Concurrent Connections</label>
+                                        <select id="loadtest-concurrency" class="pf-v5-c-form-control" style="min-width:140px;">
+                                            <option value="1" selected>1</option>
+                                            <option value="2">2</option>
+                                            <option value="5">5</option>
+                                            <option value="10">10</option>
+                                            <option value="20">20</option>
+                                            <option value="50">50</option>
+                                            <option value="100">100</option>
+                                        </select>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:12px;">
+                                        <button class="pf-v5-c-button pf-m-primary" id="loadtest-start-btn" onclick="confirmStartLoadTest()">Start Load Test</button>
+                                        <button class="pf-v5-c-button pf-m-danger" id="loadtest-stop-btn" onclick="stopLoadTest()" disabled>Stop Load Test</button>
+                                        <span id="loadtest-status-indicator" class="live-indicator-off"></span>
+                                        <span id="loadtest-status-text" style="font-size:0.875rem;color:#6a6e73;">Idle</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Load test results -->
+                        <div id="loadtest-results" class="hidden">
+                            <div class="pf-v5-l-gallery pf-m-gutter summary-gallery" id="loadtest-summary" style="margin-top:16px;"></div>
+                            <div id="loadtest-error-display" class="hidden" style="margin-top:8px;">
+                                <div class="pf-v5-c-alert pf-m-warning pf-m-inline"><div class="pf-v5-c-alert__icon"><i class="pf-icon pf-icon-warning-triangle"></i></div><h4 class="pf-v5-c-alert__title" id="loadtest-last-error"></h4></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live stats section -->
+                    <div id="livestats-section" class="hidden">
+                        <div class="pf-v5-c-card" style="margin-top:16px;">
+                            <div class="pf-v5-c-card__header">
+                                <div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">Live Pod Metrics</h2></div>
+                                <div class="pf-v5-c-card__actions" style="display:flex;align-items:center;gap:12px;">
+                                    <span id="live-status-indicator" class="live-indicator-off"></span>
+                                    <span id="live-status-text" style="font-size:0.875rem;color:#6a6e73;">Stopped</span>
+                                    <button class="pf-v5-c-button pf-m-secondary pf-m-small" id="live-toggle-btn" onclick="toggleLive()">Start Monitoring</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="live-content" class="hidden">
+                        <!-- Live gauges -->
+                        <div class="pf-v5-l-gallery pf-m-gutter summary-gallery" id="live-gauges" style="margin-top:16px;"></div>
+
+                        <!-- Chart time window control -->
+                        <div style="margin-top:16px;display:flex;align-items:center;gap:12px;padding:8px 16px;background:var(--pf-v5-global--BackgroundColor--100);border:1px solid var(--pf-v5-global--BorderColor--100);border-radius:var(--pf-v5-global--BorderRadius--sm);">
+                            <label style="font-weight:600;font-size:0.875rem;">Chart Window:</label>
+                            <select id="live-chart-window" class="pf-v5-c-form-control" style="width:160px;">
+                                <option value="60">Last 1 minute</option>
+                                <option value="120" selected>Last 2 minutes</option>
+                                <option value="300">Last 5 minutes</option>
+                                <option value="600">Last 10 minutes</option>
+                                <option value="0">All data</option>
+                            </select>
+                            <span id="live-data-points" style="font-size:0.8rem;color:#6a6e73;margin-left:auto;"></span>
+                        </div>
+
+                        <!-- Live sparkline charts -->
+                        <div class="metrics-charts-row" style="margin-top:16px;">
+                            <div class="pf-v5-c-card metrics-chart-card">
+                                <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">Requests Running / Waiting</h2></div></div>
+                                <div class="pf-v5-c-card__body">
+                                    <div class="chart-container" id="live-chart-requests"></div>
+                                </div>
+                            </div>
+                            <div class="pf-v5-c-card metrics-chart-card">
+                                <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">KV Cache Usage (%)</h2></div></div>
+                                <div class="pf-v5-c-card__body">
+                                    <div class="chart-container" id="live-chart-kv"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="metrics-charts-row" style="margin-top:16px;">
+                            <div class="pf-v5-c-card metrics-chart-card">
+                                <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">Token Throughput (tok/s)</h2></div></div>
+                                <div class="pf-v5-c-card__body">
+                                    <div class="chart-container" id="live-chart-throughput"></div>
+                                </div>
+                            </div>
+                            <div class="pf-v5-c-card metrics-chart-card">
+                                <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">Request Rate (req/s)</h2></div></div>
+                                <div class="pf-v5-c-card__body">
+                                    <div class="chart-container" id="live-chart-completed"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Live counters table -->
+                        <div class="pf-v5-c-card" style="margin-top:16px;">
+                            <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">Cumulative Counters</h2></div></div>
+                            <div class="pf-v5-c-card__body" style="padding:0;">
+                                <table class="pf-v5-c-table pf-m-compact pf-m-grid-md">
+                                    <thead><tr><th>Metric</th><th>Value</th><th>Rate (/s)</th><th>Description</th></tr></thead>
+                                    <tbody id="live-counters-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="live-error" class="hidden">
+                        <div class="pf-v5-c-alert pf-m-warning" style="margin-top:16px;"><div class="pf-v5-c-alert__icon"><i class="pf-icon pf-icon-warning-triangle"></i></div><h4 class="pf-v5-c-alert__title" id="live-error-msg"></h4></div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Firewall Rules Tab -->
+            <div id="tab-firewalls" class="hidden">
+                <section class="pf-v5-c-page__main-section pf-m-light">
+                    <div class="pf-v5-c-content">
+                        <h1>Firewall Rules</h1>
+                        <p>NetworkPolicies in model-serving namespaces, displayed in human-readable format.</p>
+                    </div>
+                </section>
+                <section class="pf-v5-c-page__main-section">
+                    <div id="firewalls-loading" class="loading-state">
+                        <span class="pf-v5-c-spinner pf-m-lg" role="progressbar"><span class="pf-v5-c-spinner__clipper"></span><span class="pf-v5-c-spinner__lead-ball"></span><span class="pf-v5-c-spinner__tail-ball"></span></span>
+                        <p>Loading network policies...</p>
+                    </div>
+                    <div id="firewalls-empty" class="hidden">
+                        <div class="pf-v5-c-empty-state">
+                            <div class="pf-v5-c-empty-state__content">
+                                <h2 class="pf-v5-c-title pf-m-lg pf-v5-c-empty-state__title-text">No network policies found</h2>
+                                <div class="pf-v5-c-empty-state__body">No NetworkPolicies are deployed in the model-serving namespaces.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="firewalls-content" class="hidden"></div>
+                </section>
+            </div>
+
+            <!-- Status Tab -->
+            <div id="tab-status" class="hidden">
+                <section class="pf-v5-c-page__main-section pf-m-light">
+                    <div class="pf-v5-c-content">
+                        <h1>System Status</h1>
+                        <p>Connection health for cluster services used by AI Toolbox.</p>
+                    </div>
+                </section>
+                <section class="pf-v5-c-page__main-section">
+                    <div id="status-loading" class="loading-state">
+                        <span class="pf-v5-c-spinner pf-m-lg" role="progressbar"><span class="pf-v5-c-spinner__clipper"></span><span class="pf-v5-c-spinner__lead-ball"></span><span class="pf-v5-c-spinner__tail-ball"></span></span>
+                        <p>Checking connections...</p>
+                    </div>
+                    <div id="status-content" class="hidden">
+                        <div class="pf-v5-c-card">
+                            <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-card__title-text">Service Connections</h2></div></div>
+                            <div class="pf-v5-c-card__body">
+                                <table class="pf-v5-c-table pf-m-grid-md" role="grid">
+                                    <thead><tr><th>Service</th><th>Status</th><th>Details</th></tr></thead>
+                                    <tbody id="status-table-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <footer class="app-footer">
+            AI Toolbox {{.Version}}
+        </footer>
+    </div>
+    <script src="/static/dashboard.js"></script>
+</body>
+</html>

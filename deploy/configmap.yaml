@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-toolbox
+  namespace: ai-toolbox
+  labels:
+    app: ai-toolbox
+data:
+  # Comma-separated list of OpenShift groups allowed to access the application.
+  # Users with the cluster-admin ClusterRole are always allowed regardless of this setting.
+  # Add OpenShift groups as needed, e.g.: "ai-engineers,data-scientists"
+  # Set to empty string "" to allow ALL authenticated users.
+  allowed-groups: ""

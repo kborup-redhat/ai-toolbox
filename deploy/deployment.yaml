@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-toolbox
+  namespace: ai-toolbox
+  labels:
+    app: ai-toolbox
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-toolbox
+  template:
+    metadata:
+      labels:
+        app: ai-toolbox
+    spec:
+      serviceAccountName: ai-toolbox
+      containers:
+        - name: oauth-proxy
+          image: OAUTH_PROXY_IMAGE_PLACEHOLDER
+          ports:
+            - containerPort: 8443
+              name: proxy
+          args:
+            - --https-address=:8443
+            - --provider=openshift
+            - --openshift-service-account=ai-toolbox
+            - --upstream=http://localhost:8080
+            - --tls-cert=/etc/tls/private/tls.crt
+            - --tls-key=/etc/tls/private/tls.key
+            - --cookie-secret=COOKIE_SECRET_PLACEHOLDER
+            - --pass-user-headers=true
+          volumeMounts:
+            - name: tls
+              mountPath: /etc/tls/private
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+
+        - name: ai-toolbox
+          image: IMAGE_PLACEHOLDER
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 8081
+              name: metrics
+          env:
+            - name: CLUSTER_DOMAIN
+              value: CLUSTER_DOMAIN_PLACEHOLDER
+            - name: APP_IMAGE
+              value: IMAGE_PLACEHOLDER
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: tls
+              mountPath: /etc/tls/private
+              readOnly: true
+            - name: app-config
+              mountPath: /etc/ai-toolbox
+              readOnly: true
+
+      volumes:
+        - name: tls
+          secret:
+            secretName: ai-toolbox-tls
+        - name: app-config
+          configMap:
+            name: ai-toolbox
