@@ -79,4 +79,5 @@ The app runs behind an OpenShift OAuth proxy for authentication. It uses the in-
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE) for details.
+
 Assisted-By: Claude
