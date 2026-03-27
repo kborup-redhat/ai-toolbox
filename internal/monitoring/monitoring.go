@@ -129,9 +129,9 @@ func (c *Client) get(rawURL string) ([]byte, error) {
 	return body, nil
 }
 
-// Ping checks if Thanos/Prometheus is reachable by querying the API status.
+// Ping checks if Thanos/Prometheus is reachable by running a simple query.
 func (c *Client) Ping() error {
-	_, err := c.get(c.baseURL + "/api/v1/status/config")
+	_, err := c.Query("up{job=\"apiserver\"}")
 	return err
 }
 

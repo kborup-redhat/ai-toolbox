@@ -38,11 +38,11 @@ function switchTab(tab) {
     ['models', 'metrics', 'analysis', 'live', 'firewalls', 'status'].forEach(function (t) {
         document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
     });
+    if (tab === 'models') loadOverview();
     if (tab === 'firewalls') loadFirewalls();
-    if (tab === 'metrics' && !metricsModelsLoaded) loadModelList();
-    if (tab === 'analysis' && !analysisModelsLoaded) loadAnalysisModelList();
-    if (tab === 'live' && !liveModelsLoaded) loadLiveModelList();
-    if (tab === 'live') fetchLoadTestBanner();
+    if (tab === 'metrics') loadModelList();
+    if (tab === 'analysis') loadAnalysisModelList();
+    if (tab === 'live') { loadLiveModelList(); fetchLoadTestBanner(); }
     if (tab === 'status') loadStatus();
     if (tab !== 'live') { stopLive(); stopLoadTestPolling(); }
 }
@@ -206,6 +206,7 @@ function loadModelList() {
         .then(function (models) {
             metricsModelsLoaded = true;
             var sel = document.getElementById('metrics-model-select');
+            var prev = sel.value;
             sel.innerHTML = '<option value="">-- Choose a model --</option>';
             (models || []).forEach(function (m) {
                 var opt = document.createElement('option');
@@ -213,6 +214,7 @@ function loadModelList() {
                 opt.textContent = m.namespace + ' / ' + m.name + (m.runtime ? ' (' + m.runtime + ')' : '') + (m.status ? ' [' + m.status + ']' : '');
                 sel.appendChild(opt);
             });
+            if (prev) sel.value = prev;
         })
         .catch(function (err) {
             showMetricsError('Failed to load model list: ' + err.message);
@@ -416,8 +418,12 @@ function loadAnalysisModelList() {
     fetch('/api/models/list')
         .then(handleJsonResponse)
         .then(function (models) {
-            analysisModelsLoaded = true;
             var sel = document.getElementById('analysis-model-select');
+            var prev = sel.value;
+            if (!analysisModelsLoaded) {
+                sel.addEventListener('change', function () { if (this.value) refreshAnalysis(); });
+            }
+            analysisModelsLoaded = true;
             sel.innerHTML = '<option value="">-- Choose a model --</option>';
             (models || []).forEach(function (m) {
                 var opt = document.createElement('option');
@@ -425,7 +431,7 @@ function loadAnalysisModelList() {
                 opt.textContent = m.namespace + ' / ' + m.name + (m.runtime ? ' (' + m.runtime + ')' : '');
                 sel.appendChild(opt);
             });
-            sel.addEventListener('change', function () { if (this.value) refreshAnalysis(); });
+            if (prev) sel.value = prev;
         })
         .catch(function (err) {
             document.getElementById('analysis-error-msg').textContent = 'Failed to load models: ' + err.message;
@@ -911,8 +917,25 @@ function loadLiveModelList() {
     fetch('/api/models/list')
         .then(handleJsonResponse)
         .then(function (models) {
-            liveModelsLoaded = true;
             var sel = document.getElementById('live-model-select');
+            var prev = sel.value;
+            if (!liveModelsLoaded) {
+                sel.addEventListener('change', function () {
+                    if (this.value) {
+                        hide('live-placeholder');
+                        show('loadtest-controls');
+                        show('livestats-section');
+                    } else {
+                        show('live-placeholder');
+                        hide('loadtest-controls');
+                        hide('livestats-section');
+                        hide('live-content');
+                        stopLive();
+                        stopLoadTestPolling();
+                    }
+                });
+            }
+            liveModelsLoaded = true;
             sel.innerHTML = '<option value="">-- Choose a model --</option>';
             (models || []).forEach(function (m) {
                 var opt = document.createElement('option');
@@ -920,20 +943,7 @@ function loadLiveModelList() {
                 opt.textContent = m.namespace + ' / ' + m.name + (m.runtime ? ' (' + m.runtime + ')' : '');
                 sel.appendChild(opt);
             });
-            sel.addEventListener('change', function () {
-                if (this.value) {
-                    hide('live-placeholder');
-                    show('loadtest-controls');
-                    show('livestats-section');
-                } else {
-                    show('live-placeholder');
-                    hide('loadtest-controls');
-                    hide('livestats-section');
-                    hide('live-content');
-                    stopLive();
-                    stopLoadTestPolling();
-                }
-            });
+            if (prev) sel.value = prev;
         })
         .catch(function (err) {
             document.getElementById('live-error-msg').textContent = 'Failed to load models: ' + err.message;
@@ -1454,6 +1464,9 @@ function resetLoadTestUI() {
     document.getElementById('loadtest-tokens').disabled = false;
     document.getElementById('loadtest-concurrency').disabled = false;
     stopLoadTestPolling();
+    // Update the banner to reflect stopped state
+    document.getElementById('loadtest-active-status').textContent = 'Idle';
+    document.getElementById('loadtest-active-status').style.color = '#3e8635';
 }
 
 function startLoadTestPolling() {
