@@ -34,7 +34,7 @@ Examples:
   # Deploy a pre-built image from a registry:
   ./deploy.sh --image quay.io/myuser/ai-toolbox:v1.0
 
-  # Deploy with defaults (quay.io/kborup-redhat/ai-toolbox:latest):
+  # Deploy with defaults (quay.io/kborup/ai-toolbox:latest):
   ./deploy.sh
 EOF
     exit 0

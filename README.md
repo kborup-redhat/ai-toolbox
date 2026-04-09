@@ -31,7 +31,7 @@ No registry login or local container tools needed:
 ### Deploy a pre-built image
 
 ```bash
-./deploy.sh --image quay.io/myuser/ai-toolbox:v1.0
+./deploy.sh --image quay.io/kborup/ai-toolbox:v.1.0.0
 ```
 
 ### Deploy with defaults
@@ -55,7 +55,7 @@ oc edit configmap ai-toolbox -n ai-toolbox
 | Variable | Description | Default |
 |---|---|---|
 | `CLUSTER_DOMAIN` | Cluster apps domain | Auto-detected |
-| `APP_IMAGE` | Container image to deploy | `quay.io/kborup-redhat/ai-toolbox:latest` |
+| `APP_IMAGE` | Container image to deploy | `quay.io/kborup/ai-toolbox:latest` |
 | `OAUTH_PROXY_IMAGE` | OAuth proxy sidecar image | `quay.io/openshift/origin-oauth-proxy:latest` |
 | `BUILD_TIMEOUT` | In-cluster build timeout | `600s` |
 

@@ -1497,7 +1497,7 @@ func (h *Handler) getRunnerImage() string {
 	if img := os.Getenv("APP_IMAGE"); img != "" {
 		return img
 	}
-	return "quay.io/kborup-redhat/ai-toolbox:latest"
+	return "quay.io/kborup/ai-toolbox:latest"
 }
 
 func (h *Handler) getAppNamespace() string {
