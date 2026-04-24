@@ -550,3 +550,422 @@ func (c *Client) GetServingRuntimes() ([]json.RawMessage, error) {
 	}
 	return raw.Items, nil
 }
+
+func (c *Client) patch(path string, body []byte, contentType string) ([]byte, error) {
+	req, err := http.NewRequest("PATCH", c.baseURL+path, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.token)
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("patch request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
+	if err != nil {
+		return nil, fmt.Errorf("reading patch response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("patch returned %d: %s", resp.StatusCode, truncate(string(respBody), 200))
+	}
+	return respBody, nil
+}
+
+func (c *Client) post(path string, body []byte) ([]byte, error) {
+	req, err := http.NewRequest("POST", c.baseURL+path, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.token)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("post request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
+	if err != nil {
+		return nil, fmt.Errorf("reading post response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("post returned %d: %s", resp.StatusCode, truncate(string(respBody), 200))
+	}
+	return respBody, nil
+}
+
+func (c *Client) deleteResource(path string) error {
+	req, err := http.NewRequest("DELETE", c.baseURL+path, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.token)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("delete request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 404 {
+		return nil
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		return fmt.Errorf("delete returned %d: %s", resp.StatusCode, truncate(string(body), 200))
+	}
+	return nil
+}
+
+func (c *Client) getWithStatus(path string) ([]byte, int, error) {
+	req, err := http.NewRequest("GET", c.baseURL+path, nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.token)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
+	if err != nil {
+		return nil, resp.StatusCode, fmt.Errorf("reading response: %w", err)
+	}
+	return body, resp.StatusCode, nil
+}
+
+func (c *Client) PatchNodeLabels(nodeName string, labels map[string]string) error {
+	patch := struct {
+		Metadata struct {
+			Labels map[string]string `json:"labels"`
+		} `json:"metadata"`
+	}{}
+	patch.Metadata.Labels = labels
+	body, err := json.Marshal(patch)
+	if err != nil {
+		return err
+	}
+	_, err = c.patch(fmt.Sprintf("/api/v1/nodes/%s", nodeName), body, "application/strategic-merge-patch+json")
+	return err
+}
+
+func (c *Client) CordonNode(nodeName string) error {
+	body := []byte(`{"spec":{"unschedulable":true}}`)
+	_, err := c.patch(fmt.Sprintf("/api/v1/nodes/%s", nodeName), body, "application/strategic-merge-patch+json")
+	return err
+}
+
+func (c *Client) UncordonNode(nodeName string) error {
+	body := []byte(`{"spec":{"unschedulable":false}}`)
+	_, err := c.patch(fmt.Sprintf("/api/v1/nodes/%s", nodeName), body, "application/strategic-merge-patch+json")
+	return err
+}
+
+func (c *Client) CreateConfigMap(namespace, name string, data map[string]string) error {
+	cm := struct {
+		APIVersion string `json:"apiVersion"`
+		Kind       string `json:"kind"`
+		Metadata   struct {
+			Name      string `json:"name"`
+			Namespace string `json:"namespace"`
+		} `json:"metadata"`
+		Data map[string]string `json:"data"`
+	}{}
+	cm.APIVersion = "v1"
+	cm.Kind = "ConfigMap"
+	cm.Metadata.Name = name
+	cm.Metadata.Namespace = namespace
+	cm.Data = data
+	body, err := json.Marshal(cm)
+	if err != nil {
+		return err
+	}
+	_, err = c.post(fmt.Sprintf("/api/v1/namespaces/%s/configmaps", namespace), body)
+	return err
+}
+
+func (c *Client) PatchConfigMap(namespace, name string, data map[string]string) error {
+	patch := struct {
+		Data map[string]string `json:"data"`
+	}{Data: data}
+	body, err := json.Marshal(patch)
+	if err != nil {
+		return err
+	}
+	_, err = c.patch(fmt.Sprintf("/api/v1/namespaces/%s/configmaps/%s", namespace, name), body, "application/strategic-merge-patch+json")
+	return err
+}
+
+func (c *Client) GetConfigMap(namespace, name string) (map[string]string, error) {
+	data, err := c.get(fmt.Sprintf("/api/v1/namespaces/%s/configmaps/%s", namespace, name))
+	if err != nil {
+		return nil, err
+	}
+	var cm struct {
+		Data map[string]string `json:"data"`
+	}
+	if err := json.Unmarshal(data, &cm); err != nil {
+		return nil, fmt.Errorf("parsing configmap: %w", err)
+	}
+	return cm.Data, nil
+}
+
+func (c *Client) CRDExists(crdName string) (bool, error) {
+	_, statusCode, err := c.getWithStatus(fmt.Sprintf("/apis/apiextensions.k8s.io/v1/customresourcedefinitions/%s", crdName))
+	if err != nil {
+		return false, err
+	}
+	return statusCode == 200, nil
+}
+
+func (c *Client) PatchCustomResource(path string, patchBody []byte) ([]byte, error) {
+	return c.patch(path, patchBody, "application/merge-patch+json")
+}
+
+func (c *Client) EvictPod(namespace, name string) error {
+	eviction := struct {
+		APIVersion string `json:"apiVersion"`
+		Kind       string `json:"kind"`
+		Metadata   struct {
+			Name      string `json:"name"`
+			Namespace string `json:"namespace"`
+		} `json:"metadata"`
+	}{}
+	eviction.APIVersion = "policy/v1"
+	eviction.Kind = "Eviction"
+	eviction.Metadata.Name = name
+	eviction.Metadata.Namespace = namespace
+	body, err := json.Marshal(eviction)
+	if err != nil {
+		return err
+	}
+	_, err = c.post(fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/eviction", namespace, name), body)
+	return err
+}
+
+func (c *Client) CreateJob(namespace, name, image string, command []string, resourceRequests map[string]string) error {
+	type containerSpec struct {
+		Name      string                `json:"name"`
+		Image     string                `json:"image"`
+		Command   []string              `json:"command"`
+		Resources *ContainerResources   `json:"resources,omitempty"`
+	}
+	job := struct {
+		APIVersion string `json:"apiVersion"`
+		Kind       string `json:"kind"`
+		Metadata   struct {
+			Name      string `json:"name"`
+			Namespace string `json:"namespace"`
+		} `json:"metadata"`
+		Spec struct {
+			BackoffLimit int `json:"backoffLimit"`
+			Template     struct {
+				Spec struct {
+					Containers    []containerSpec `json:"containers"`
+					RestartPolicy string          `json:"restartPolicy"`
+				} `json:"spec"`
+			} `json:"template"`
+		} `json:"spec"`
+	}{}
+	job.APIVersion = "batch/v1"
+	job.Kind = "Job"
+	job.Metadata.Name = name
+	job.Metadata.Namespace = namespace
+	job.Spec.BackoffLimit = 0
+	job.Spec.Template.Spec.RestartPolicy = "Never"
+	cs := containerSpec{
+		Name:    "worker",
+		Image:   image,
+		Command: command,
+	}
+	if len(resourceRequests) > 0 {
+		cs.Resources = &ContainerResources{
+			Requests: resourceRequests,
+			Limits:   resourceRequests,
+		}
+	}
+	job.Spec.Template.Spec.Containers = []containerSpec{cs}
+	body, err := json.Marshal(job)
+	if err != nil {
+		return err
+	}
+	_, err = c.post(fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs", namespace), body)
+	return err
+}
+
+func (c *Client) DeleteJob(namespace, name string) error {
+	return c.deleteResource(fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs/%s", namespace, name))
+}
+
+func (c *Client) GetPodsOnNode(nodeName string) ([]Pod, error) {
+	path := fmt.Sprintf("/api/v1/pods?fieldSelector=%s", url.QueryEscape("spec.nodeName="+nodeName))
+	data, err := c.get(path)
+	if err != nil {
+		return nil, err
+	}
+	var list PodList
+	if err := json.Unmarshal(data, &list); err != nil {
+		return nil, fmt.Errorf("parsing pods: %w", err)
+	}
+	return list.Items, nil
+}
+
+func (c *Client) AddNodeTaint(nodeName, key, value, effect string) error {
+	data, err := c.get(fmt.Sprintf("/api/v1/nodes/%s", nodeName))
+	if err != nil {
+		return fmt.Errorf("getting node for taint: %w", err)
+	}
+	var node Node
+	if err := json.Unmarshal(data, &node); err != nil {
+		return fmt.Errorf("parsing node: %w", err)
+	}
+	taints := node.Spec.Taints
+	for _, t := range taints {
+		if t.Key == key && t.Effect == effect {
+			return nil
+		}
+	}
+	taints = append(taints, Taint{Key: key, Value: value, Effect: effect})
+	patch := struct {
+		Spec struct {
+			Taints []Taint `json:"taints"`
+		} `json:"spec"`
+	}{}
+	patch.Spec.Taints = taints
+	body, err := json.Marshal(patch)
+	if err != nil {
+		return err
+	}
+	_, err = c.patch(fmt.Sprintf("/api/v1/nodes/%s", nodeName), body, "application/strategic-merge-patch+json")
+	return err
+}
+
+func (c *Client) RemoveNodeTaint(nodeName, key string) error {
+	data, err := c.get(fmt.Sprintf("/api/v1/nodes/%s", nodeName))
+	if err != nil {
+		return fmt.Errorf("getting node for taint removal: %w", err)
+	}
+	var node Node
+	if err := json.Unmarshal(data, &node); err != nil {
+		return fmt.Errorf("parsing node: %w", err)
+	}
+	var filtered []Taint
+	for _, t := range node.Spec.Taints {
+		if t.Key != key {
+			filtered = append(filtered, t)
+		}
+	}
+	patch := struct {
+		Spec struct {
+			Taints []Taint `json:"taints"`
+		} `json:"spec"`
+	}{}
+	patch.Spec.Taints = filtered
+	if patch.Spec.Taints == nil {
+		patch.Spec.Taints = []Taint{}
+	}
+	body, err := json.Marshal(patch)
+	if err != nil {
+		return err
+	}
+	_, err = c.patch(fmt.Sprintf("/api/v1/nodes/%s", nodeName), body, "application/strategic-merge-patch+json")
+	return err
+}
+
+func (c *Client) CreateNamespace(name string) error {
+	ns := struct {
+		APIVersion string `json:"apiVersion"`
+		Kind       string `json:"kind"`
+		Metadata   struct {
+			Name string `json:"name"`
+		} `json:"metadata"`
+	}{}
+	ns.APIVersion = "v1"
+	ns.Kind = "Namespace"
+	ns.Metadata.Name = name
+	body, err := json.Marshal(ns)
+	if err != nil {
+		return err
+	}
+	_, err = c.post("/api/v1/namespaces", body)
+	return err
+}
+
+func (c *Client) CreateSubscription(namespace, packageName, channel, source, sourceNamespace string) error {
+	sub := struct {
+		APIVersion string `json:"apiVersion"`
+		Kind       string `json:"kind"`
+		Metadata   struct {
+			Name      string `json:"name"`
+			Namespace string `json:"namespace"`
+		} `json:"metadata"`
+		Spec struct {
+			Channel             string `json:"channel"`
+			Name                string `json:"name"`
+			Source              string `json:"source"`
+			SourceNamespace     string `json:"sourceNamespace"`
+			InstallPlanApproval string `json:"installPlanApproval"`
+		} `json:"spec"`
+	}{}
+	sub.APIVersion = "operators.coreos.com/v1alpha1"
+	sub.Kind = "Subscription"
+	sub.Metadata.Name = packageName
+	sub.Metadata.Namespace = namespace
+	sub.Spec.Channel = channel
+	sub.Spec.Name = packageName
+	sub.Spec.Source = source
+	sub.Spec.SourceNamespace = sourceNamespace
+	sub.Spec.InstallPlanApproval = "Automatic"
+	body, err := json.Marshal(sub)
+	if err != nil {
+		return err
+	}
+	_, err = c.post(fmt.Sprintf("/apis/operators.coreos.com/v1alpha1/namespaces/%s/subscriptions", namespace), body)
+	return err
+}
+
+func (c *Client) CreateOperatorGroup(namespace, name string) error {
+	og := struct {
+		APIVersion string `json:"apiVersion"`
+		Kind       string `json:"kind"`
+		Metadata   struct {
+			Name      string `json:"name"`
+			Namespace string `json:"namespace"`
+		} `json:"metadata"`
+		Spec struct {
+			TargetNamespaces []string `json:"targetNamespaces"`
+		} `json:"spec"`
+	}{}
+	og.APIVersion = "operators.coreos.com/v1"
+	og.Kind = "OperatorGroup"
+	og.Metadata.Name = name
+	og.Metadata.Namespace = namespace
+	og.Spec.TargetNamespaces = []string{namespace}
+	body, err := json.Marshal(og)
+	if err != nil {
+		return err
+	}
+	_, err = c.post(fmt.Sprintf("/apis/operators.coreos.com/v1/namespaces/%s/operatorgroups", namespace), body)
+	return err
+}
+
+func (c *Client) GetCustomResource(path string) ([]byte, error) {
+	return c.get(path)
+}
+
+func (c *Client) CreateCustomResource(path string, body []byte) error {
+	_, err := c.post(path, body)
+	return err
+}
