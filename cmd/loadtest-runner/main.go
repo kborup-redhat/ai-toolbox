@@ -4,11 +4,17 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/kborup-redhat/ai-toolbox/internal/loadtest"
 )
 
 func main() {
+	addr := os.Getenv("LISTEN_ADDR")
+	if addr == "" {
+		addr = ":8090"
+	}
+
 	runner := loadtest.NewRunner()
 
 	mux := http.NewServeMux()
@@ -38,8 +44,13 @@ func main() {
 		json.NewEncoder(w).Encode(runner.GetStats())
 	})
 
-	log.Println("Load test runner starting on :8090")
-	if err := http.ListenAndServe(":8090", mux); err != nil {
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	})
+
+	log.Printf("Load test runner starting on %s", addr)
+	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
 }
