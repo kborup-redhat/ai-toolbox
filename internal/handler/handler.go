@@ -1556,9 +1556,10 @@ func (h *Handler) ensureRunnerPod() (string, error) {
 			"restartPolicy":      "Never",
 			"containers": []map[string]interface{}{
 				{
-					"name":    "runner",
-					"image":   image,
-					"command": []string{"loadtest-runner"},
+					"name":            "runner",
+					"image":           image,
+					"imagePullPolicy": "Always",
+					"command":         []string{"loadtest-runner"},
 					"ports": []map[string]interface{}{
 						{"containerPort": 8090, "name": "api"},
 					},
