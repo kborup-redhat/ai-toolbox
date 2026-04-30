@@ -1,4 +1,4 @@
-ai-toolbox
-loadtest-runner
+/ai-toolbox
+/loadtest-runner
 *.exe
 .env
